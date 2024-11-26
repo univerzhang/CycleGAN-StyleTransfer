@@ -106,47 +106,57 @@ def main():
             #loop.set_description(f'Epoch [{epoch}/{num_epochs}]')
             loop.set_postfix(Loss_A=total_loss_A.item(), Loss_B=total_loss_B.item())
 
-'''
-            # 验证循环
-            with torch.no_grad():
-                val_loop = tqdm(val_dataloader)  # 使用tqdm包装val_dataloader
-                val_loss_A = 0
-                val_loss_B = 0
-                for j, val_data in enumerate(val_loop):
-                    val_inputs_A, val_inputs_B = val_data[0].to(device), val_data[1].to(device)
 
-                    # 生成图像
-                    val_generated_B = generator_A(val_inputs_A)
-                    val_generated_A = generator_B(val_inputs_B)
+        # 验证循环
+        with torch.no_grad():
+            val_loop = tqdm(val_dataloader)  # 使用tqdm包装val_dataloader
+            val_loss_A = 0
+            val_loss_B = 0
+            for j, val_data in enumerate(val_loop):
+                val_inputs_A, val_inputs_B = val_data[0].to(device), val_data[1].to(device)
 
-                    # 循环一致性损失
-                    val_cycled_A = generator_B(val_generated_B)
-                    val_cycled_B = generator_A(val_generated_A)
+                # 生成图像
+                val_generated_B = generator_A(val_inputs_A)
+                val_generated_A = generator_B(val_inputs_B)
 
-                    # 判别器输出
-                    val_real_A_output = discriminator_A(val_inputs_A)
-                    val_real_B_output = discriminator_B(val_inputs_B)
-                    val_fake_A_output = discriminator_A(val_generated_A)
-                    val_fake_B_output = discriminator_B(val_generated_B)
+                # 循环一致性损失
+                val_cycled_A = generator_B(val_generated_B)
+                val_cycled_B = generator_A(val_generated_A)
 
-                    # 计算损失
-                    val_cycle_loss_A = torch.mean(torch.abs(val_inputs_A - val_cycled_A))
-                    val_cycle_loss_B = torch.mean(torch.abs(val_inputs_B - val_cycled_B))
-                    val_adversarial_loss_A = torch.mean(torch.abs(val_real_A_output - val_fake_A_output))
-                    val_adversarial_loss_B = torch.mean(torch.abs(val_real_B_output - val_fake_B_output))
+                # 判别器输出
+                val_real_A_output = discriminator_A(val_inputs_A)
+                val_real_B_output = discriminator_B(val_inputs_B)
+                val_fake_A_output = discriminator_A(val_generated_A)
+                val_fake_B_output = discriminator_B(val_generated_B)
 
-                    # 总损失
-                    val_total_loss_A = val_cycle_loss_A + val_adversarial_loss_A
-                    val_total_loss_B = val_cycle_loss_B + val_adversarial_loss_B
+                # 计算损失
+                val_cycle_loss_A = torch.mean(torch.abs(val_inputs_A - val_cycled_A))
+                val_cycle_loss_B = torch.mean(torch.abs(val_inputs_B - val_cycled_B))
+                val_adversarial_loss_A = torch.mean(torch.abs(val_real_A_output - val_fake_A_output))
+                val_adversarial_loss_B = torch.mean(torch.abs(val_real_B_output - val_fake_B_output))
 
-                    val_loss_A += val_total_loss_A.item()
-                    val_loss_B += val_total_loss_B.item()
+                # 总损失
+                val_total_loss_A = val_cycle_loss_A + val_adversarial_loss_A
+                val_total_loss_B = val_cycle_loss_B + val_adversarial_loss_B
 
-                    val_loop.set_description(f'Validation Epoch [{epoch}/{num_epochs}]')
-                    val_loop.set_postfix(Val_Loss_A=val_loss_A / (i + 1), Val_Loss_B=val_loss_B / (i + 1))
+                val_loss_A += val_total_loss_A.item()
+                val_loss_B += val_total_loss_B.item()
 
-                print(f'Validation Loss A: {val_loss_A / (i + 1)}, Validation Loss B: {val_loss_B / (i + 1)}')
-'''
+                val_loop.set_description(f'Validation Epoch [{epoch}/{num_epochs}]')
+                val_loop.set_postfix(Val_Loss_A=val_loss_A / (i + 1), Val_Loss_B=val_loss_B / (i + 1))
+
+            print(f'Validation Loss A: {val_loss_A / (i + 1)}, Validation Loss B: {val_loss_B / (i + 1)}')
+
+        torch.save({
+            'generator_A': generator_A.state_dict(),
+            'generator_B': generator_B.state_dict(),
+            'discriminator_A': discriminator_A.state_dict(),
+            'discriminator_B': discriminator_B.state_dict(),
+            'optimizer_G': optimizer_G.state_dict(),
+            'optimizer_D': optimizer_D.state_dict(),
+            'epoch': num_epochs
+        }, './cycleGAN_model.pth')
+
 
 if __name__ == '__main__':
     main()

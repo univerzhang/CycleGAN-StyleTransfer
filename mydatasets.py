@@ -36,3 +36,4 @@ class CreateDatasets(Dataset):
         A_img = self.transform(A_img)
         B_img = self.transform(B_img)
         return A_img, B_img
+

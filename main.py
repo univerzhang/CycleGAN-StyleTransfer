@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.transforms import transforms
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 from mydatasets import CreateDatasets
@@ -45,11 +44,13 @@ class Discriminator(nn.Module):
 
 def main():
 
-    train = CreateDatasets(root_path='D:/BaiduNetdiskDownload/monet2photo/trainA', img_size=256, mode='train')
+    # 训练集与验证集
+    train = CreateDatasets(root_path='D:/BaiduNetdiskDownload/monet2photo', img_size=256, mode='train')
+    val = CreateDatasets(root_path='D:/BaiduNetdiskDownload/monet2photo', img_size=256, mode='test')
+
     # 创建数据加载器
-    dataloader = DataLoader(dataset=train, batch_size=1, shuffle=False, num_workers=4,
-                            drop_last=True)
-    print(len(dataloader))
+    train_dataloader = DataLoader(dataset=train, batch_size=1, num_workers=4, drop_last=True)
+    val_dataloader = DataLoader(dataset=val, batch_size=1, num_workers=4, drop_last=True)
 
     # 实例化模型
     generator_A = Generator().to(device)
@@ -62,10 +63,10 @@ def main():
     optimizer_D = optim.Adam([{'params': discriminator_A.parameters()}, {'params': discriminator_B.parameters()}])
 
     # 训练模型
-    num_epochs = 2
+    num_epochs = 1
     for epoch in range(num_epochs):
         print(f'Epoch [{epoch}/{num_epochs}]')
-        loop = tqdm(dataloader)  # 使用tqdm包装dataloader
+        loop = tqdm(train_dataloader)  # 使用tqdm包装train_dataloader
         for i, data in enumerate(loop):
             inputs_A, inputs_B = data[0].to(device), data[1].to(device)
 
@@ -102,8 +103,48 @@ def main():
             optimizer_G.step()
             optimizer_D.step()
 
-            print(f'Loss A: {total_loss_A.item()}, Loss B: {total_loss_B.item()}')
-        print(f'Epoch [{epoch}/{num_epochs}]')
+            #loop.set_description(f'Epoch [{epoch}/{num_epochs}]')
+            loop.set_postfix(Loss_A=total_loss_A.item(), Loss_B=total_loss_B.item())
+
+            # 验证循环
+            with torch.no_grad():
+                val_loop = tqdm(val_dataloader)  # 使用tqdm包装val_dataloader
+                val_loss_A = 0
+                val_loss_B = 0
+                for j, val_data in enumerate(val_loop):
+                    val_inputs_A, val_inputs_B = val_data[0].to(device), val_data[1].to(device)
+
+                    # 生成图像
+                    val_generated_B = generator_A(val_inputs_A)
+                    val_generated_A = generator_B(val_inputs_B)
+
+                    # 循环一致性损失
+                    val_cycled_A = generator_B(val_generated_B)
+                    val_cycled_B = generator_A(val_generated_A)
+
+                    # 判别器输出
+                    val_real_A_output = discriminator_A(val_inputs_A)
+                    val_real_B_output = discriminator_B(val_inputs_B)
+                    val_fake_A_output = discriminator_A(val_generated_A)
+                    val_fake_B_output = discriminator_B(val_generated_B)
+
+                    # 计算损失
+                    val_cycle_loss_A = torch.mean(torch.abs(val_inputs_A - val_cycled_A))
+                    val_cycle_loss_B = torch.mean(torch.abs(val_inputs_B - val_cycled_B))
+                    val_adversarial_loss_A = torch.mean(torch.abs(val_real_A_output - val_fake_A_output))
+                    val_adversarial_loss_B = torch.mean(torch.abs(val_real_B_output - val_fake_B_output))
+
+                    # 总损失
+                    val_total_loss_A = val_cycle_loss_A + val_adversarial_loss_A
+                    val_total_loss_B = val_cycle_loss_B + val_adversarial_loss_B
+
+                    val_loss_A += val_total_loss_A.item()
+                    val_loss_B += val_total_loss_B.item()
+
+                    val_loop.set_description(f'Validation Epoch [{epoch}/{num_epochs}]')
+                    val_loop.set_postfix(Val_Loss_A=val_loss_A / (i + 1), Val_Loss_B=val_loss_B / (i + 1))
+
+                print(f'Validation Loss A: {val_loss_A / (i + 1)}, Validation Loss B: {val_loss_B / (i + 1)}')
 
 
 if __name__ == '__main__':

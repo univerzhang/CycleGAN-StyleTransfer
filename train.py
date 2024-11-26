@@ -18,11 +18,11 @@ def train(epoch, num_epochs, train_dataloader, O_G, O_D, G_A, G_B, D_A, D_B):
         O_G.zero_grad()
         O_D.zero_grad()
 
-        # 生成图像
+        # 生成假图像
         generated_B = G_A(inputs_A)
         generated_A = G_B(inputs_B)
 
-        # 循环一致性损失
+        # 循环重建图像
         cycled_A = G_B(generated_B)
         cycled_B = G_A(generated_A)
 
@@ -32,15 +32,23 @@ def train(epoch, num_epochs, train_dataloader, O_G, O_D, G_A, G_B, D_A, D_B):
         fake_A_output = D_A(generated_A)
         fake_B_output = D_B(generated_B)
 
-        # 计算损失
+        # 身份验证图像
+        identity_A = G_B(inputs_A)
+        identity_B = G_A(inputs_B)
+
+        # 循环一致性损失
         cycle_loss_A = torch.mean(torch.abs(inputs_A - cycled_A))
         cycle_loss_B = torch.mean(torch.abs(inputs_B - cycled_B))
+        # 对抗损失
         adversarial_loss_A = torch.mean(torch.abs(real_A_output - fake_A_output))
         adversarial_loss_B = torch.mean(torch.abs(real_B_output - fake_B_output))
+        # 身份验证损失
+        identity_loss_A = torch.mean(torch.abs(inputs_A - identity_A))
+        identity_loss_B = torch.mean(torch.abs(inputs_B - identity_B))
 
         # 总损失
-        total_loss_A = cycle_loss_A + adversarial_loss_A
-        total_loss_B = cycle_loss_B + adversarial_loss_B
+        total_loss_A = cycle_loss_A + adversarial_loss_A + identity_loss_A
+        total_loss_B = cycle_loss_B + adversarial_loss_B + identity_loss_B
 
         # 反向传播和优化
         total_loss_A.backward(retain_graph=True)  # 设置retain_graph=True
@@ -62,7 +70,7 @@ def verify(epoch, num_epochs, val_dataloader, G_A, G_B, D_A, D_B):
         val_generated_B = G_A(val_inputs_A)
         val_generated_A = G_B(val_inputs_B)
 
-        # 循环一致性损失
+        # 循环重建图像
         val_cycled_A = G_B(val_generated_B)
         val_cycled_B = G_A(val_generated_A)
 
@@ -72,15 +80,23 @@ def verify(epoch, num_epochs, val_dataloader, G_A, G_B, D_A, D_B):
         val_fake_A_output = D_A(val_generated_A)
         val_fake_B_output = D_B(val_generated_B)
 
-        # 计算损失
+        # 身份验证图像
+        identity_A = G_B(val_inputs_A)
+        identity_B = G_A(val_inputs_B)
+
+        # 循环一致性损失
         val_cycle_loss_A = torch.mean(torch.abs(val_inputs_A - val_cycled_A))
         val_cycle_loss_B = torch.mean(torch.abs(val_inputs_B - val_cycled_B))
+        # 对抗损失
         val_adversarial_loss_A = torch.mean(torch.abs(val_real_A_output - val_fake_A_output))
         val_adversarial_loss_B = torch.mean(torch.abs(val_real_B_output - val_fake_B_output))
+        # 身份验证损失
+        identity_loss_A = torch.mean(torch.abs(val_inputs_A - identity_A))
+        identity_loss_B = torch.mean(torch.abs(val_inputs_B - identity_B))
 
         # 总损失
-        val_total_loss_A = val_cycle_loss_A + val_adversarial_loss_A
-        val_total_loss_B = val_cycle_loss_B + val_adversarial_loss_B
+        val_total_loss_A = val_cycle_loss_A + val_adversarial_loss_A + identity_loss_A
+        val_total_loss_B = val_cycle_loss_B + val_adversarial_loss_B + identity_loss_B
 
         val_loss_A += val_total_loss_A.item()
         val_loss_B += val_total_loss_B.item()
@@ -124,7 +140,7 @@ def main():
     optimizer_D = optim.Adam([{'params': discriminator_A.parameters()}, {'params': discriminator_B.parameters()}])
 
     # 训练模型
-    num_epochs = 10
+    num_epochs = 20
     for epoch in range(num_epochs):
         train(epoch, num_epochs, train_dataloader, optimizer_G, optimizer_D,
               generator_A, generator_B, discriminator_A, discriminator_B)

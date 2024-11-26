@@ -106,6 +106,7 @@ def main():
             #loop.set_description(f'Epoch [{epoch}/{num_epochs}]')
             loop.set_postfix(Loss_A=total_loss_A.item(), Loss_B=total_loss_B.item())
 
+'''
             # 验证循环
             with torch.no_grad():
                 val_loop = tqdm(val_dataloader)  # 使用tqdm包装val_dataloader
@@ -145,7 +146,7 @@ def main():
                     val_loop.set_postfix(Val_Loss_A=val_loss_A / (i + 1), Val_Loss_B=val_loss_B / (i + 1))
 
                 print(f'Validation Loss A: {val_loss_A / (i + 1)}, Validation Loss B: {val_loss_B / (i + 1)}')
-
+'''
 
 if __name__ == '__main__':
     main()

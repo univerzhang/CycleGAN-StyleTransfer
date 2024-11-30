@@ -140,7 +140,7 @@ def main():
     optimizer_D = optim.Adam([{'params': discriminator_A.parameters()}, {'params': discriminator_B.parameters()}])
 
     # 训练模型
-    num_epochs = 20
+    num_epochs = 5
     for epoch in range(num_epochs):
         train(epoch, num_epochs, train_dataloader, optimizer_G, optimizer_D,
               generator_A, generator_B, discriminator_A, discriminator_B)

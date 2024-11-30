@@ -28,7 +28,8 @@ def test(input_path):
     # 生成图片
     output_image = generator(input_image)
     output_image = output_image.squeeze(0)  # 移除batch维度
-    # output_image = output_image.permute(1, 2, 0)  # 转换为HWC格式
+    output_image = output_image.permute(1, 2, 0)  # 转换为HWC格式
+    output_image = (0.5 * (output_image + 1)).cpu().detach().numpy()  # 经过归一化处理的图像转换回原始范围
     output_image = transform.ToPILImage()(output_image)  # 转换为PIL图像
     output_image.save(output_path)
 
